@@ -1,4 +1,4 @@
-import introLogo from '../assets/intro_logo.png';
+import introLogo from '../assets/intro_logo.svg';
 
 type Props = {
   onDismiss: () => void;

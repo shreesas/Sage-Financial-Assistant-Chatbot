@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { PAIRS, WINDOW_LABEL } from '../data/pairs';
 import { useStockData } from '../hooks/useStockData';
 import type { PairKey, WindowKey } from '../types';
@@ -11,8 +12,16 @@ function fmt$(n: number): string {
   return `$${n.toFixed(2)}`;
 }
 
+function fmtRSI(n: number): string {
+  return n.toFixed(2);
+}
+
 export default function SpreadTable({ pair, window }: Props) {
-  const { ready, error, getStats, getLatestClose } = useStockData();
+  const { ready, error, getStats, getLatestClose, fetchForPair, isLoadingPair, getAvError } = useStockData();
+
+  useEffect(() => {
+    if (ready) fetchForPair(pair);
+  }, [ready, pair, fetchForPair]);
 
   const meta = PAIRS[pair];
 
@@ -37,9 +46,13 @@ export default function SpreadTable({ pair, window }: Props) {
   const latest = getLatestClose(pair);
 
   if (!stats) {
+    const avErr = getAvError(pair);
     return (
       <div className="widget">
-        <div className="widget__title">No data</div>
+        <div className="widget__title">
+          {isLoadingPair(pair) ? 'Loading spread…' : avErr ? "Couldn't load spread" : 'NO DATA'}
+        </div>
+        {avErr && <div className="verdict" style={{ fontSize: 12, opacity: 0.7 }}>{avErr}</div>}
       </div>
     );
   }
@@ -47,7 +60,7 @@ export default function SpreadTable({ pair, window }: Props) {
   return (
     <div className="widget">
       <div className="widget__title">
-        Spread snapshot · {WINDOW_LABEL[window]}
+        Spread Snapshot · {WINDOW_LABEL[window]}
       </div>
       <table className="tbl" aria-label="Today's prices">
         <thead>
@@ -76,19 +89,19 @@ export default function SpreadTable({ pair, window }: Props) {
       <div className="kv">
         <div
           className="kv__label"
-          title="How far apart the two stock prices are right now."
+          title="RSI of the A/B price ratio — measures overbought/oversold relative to historical spread."
         >
-          Current gap
+          Current Gap
         </div>
-        <div className="kv__value">{fmt$(stats.currentSpread)}</div>
+        <div className="kv__value">{fmtRSI(stats.currentSpread)}</div>
 
         <div
           className="kv__label"
-          title={`The average gap over the ${WINDOW_LABEL[window]} window — what's "normal" for this pair.`}
+          title={`The average RSI spread over the ${WINDOW_LABEL[window]} window — what's "normal" for this pair.`}
         >
-          Typical gap
+          Typical Gap
         </div>
-        <div className="kv__value">{fmt$(stats.meanSpread)}</div>
+        <div className="kv__value">{fmtRSI(stats.meanSpread)}</div>
       </div>
     </div>
   );

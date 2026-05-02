@@ -32,7 +32,8 @@
             "Hi there.",
             "Yo.",
             "What's up, Sage?",
-            "Talk to me, Sage."
+            "Talk to me, Sage.",
+            "Start"
           ]
         },
         {
@@ -62,11 +63,7 @@
             "Let's do it.",
             "I'm ready.",
             "Show me.",
-            "Yes please.",
-            "Hello, Show me stock pairs",
-            "Hi, Show me stock pairs",
-            "Hi, show pairs",
-            "Hey, show me pairs"
+            "Yes please."
           ]
         },
         {
@@ -453,6 +450,23 @@
         },
         {
           "speaker": "Sage",
+          "message": "Can you share your email address?"
+        },
+        {
+          "speaker": "User",
+          "message": "investor.demo@example.com",
+          "utterances": [
+            "investor.demo@example.com",
+            "Sure — investor.demo@example.com",
+            "Use investor.demo@example.com.",
+            "My email is investor.demo@example.com.",
+            "It's investor.demo@example.com.",
+            "Send alerts to investor.demo@example.com.",
+            "Reach me at investor.demo@example.com."
+          ]
+        },
+        {
+          "speaker": "Sage",
           "message": "All set. I'll email you if Visa and Mastercard drift to 2 standard deviations or more. They're at 0.5 now, so it would take a meaningful move before you hear from me.\nAnything else?"
         },
         {
@@ -519,7 +533,8 @@
             "Hi there.",
             "Yo.",
             "What's up, Sage?",
-            "Talk to me, Sage."
+            "Talk to me, Sage.",
+            "Start"
           ]
         },
         {
@@ -1002,7 +1017,8 @@
             "Hi there.",
             "Yo.",
             "What's up, Sage?",
-            "Talk to me, Sage."
+            "Talk to me, Sage.",
+            "Start"
           ]
         },
         {

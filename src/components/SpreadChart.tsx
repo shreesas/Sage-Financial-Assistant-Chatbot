@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { PAIRS, WINDOW_LABEL } from '../data/pairs';
 import { useStockData } from '../hooks/useStockData';
 import type { PairKey, WindowKey } from '../types';
@@ -35,8 +36,8 @@ function yTicks(min: number, max: number, n = 4): number[] {
   return out;
 }
 
-function fmtMoney(n: number): string {
-  return `$${n.toFixed(0)}`;
+function fmtRSI(n: number): string {
+  return n.toFixed(1);
 }
 
 function fmtDateShort(s: string): string {
@@ -45,8 +46,12 @@ function fmtDateShort(s: string): string {
 }
 
 export default function SpreadChart({ pair, window }: Props) {
-  const { ready, error, getSeries, getStats } = useStockData();
+  const { ready, error, getSeries, getStats, fetchForPair, isLoadingPair, getAvError } = useStockData();
   const meta = PAIRS[pair];
+
+  useEffect(() => {
+    if (ready) fetchForPair(pair);
+  }, [ready, pair, fetchForPair]);
 
   if (error) {
     return (
@@ -72,11 +77,15 @@ export default function SpreadChart({ pair, window }: Props) {
   const series = getSeries(pair, window);
   const stats = getStats(pair, window);
   if (!series || series.legA.length < 2) {
+    const avErr = getAvError(pair);
     return (
       <div className="chart">
         <div className="chart__head">
-          <div className="chart__title">No data for this window</div>
+          <div className="chart__title">
+            {isLoadingPair(pair) ? 'Loading chart…' : avErr ? "Couldn't load chart" : 'No data for this window'}
+          </div>
         </div>
+        {avErr && <div className="verdict" style={{ fontSize: 12, opacity: 0.7 }}>{avErr}</div>}
       </div>
     );
   }
@@ -119,7 +128,7 @@ export default function SpreadChart({ pair, window }: Props) {
       <div className="chart__head">
         <div
           className="chart__title"
-          title={`Gap = ${meta.legB.ticker} price − ${meta.legA.ticker} price. The shaded band is one standard deviation either side of the average.`}
+          title={`RSI of the ${meta.legA.ticker}/${meta.legB.ticker} price ratio. Shaded band = ±1 standard deviation from the mean RSI.`}
         >
           Gap · {WINDOW_LABEL[window]}
         </div>
@@ -127,7 +136,7 @@ export default function SpreadChart({ pair, window }: Props) {
           <span title="One standard deviation either side of the average gap.">
             <span
               className="chart__legend-dot"
-              style={{ background: 'var(--robin-neon-edge)' }}
+              style={{ background: 'var(--color-green-edge)' }}
             />
             typical wiggle band
           </span>
@@ -148,7 +157,7 @@ export default function SpreadChart({ pair, window }: Props) {
             y={Math.min(bandTopY, bandBottomY)}
             width={innerW}
             height={Math.abs(bandBottomY - bandTopY)}
-            fill="var(--robin-neon-soft)"
+            fill="var(--color-green-soft)"
           />
           <line
             x1={PAD_L}
@@ -171,13 +180,13 @@ export default function SpreadChart({ pair, window }: Props) {
               fill="var(--text-faint)"
               textAnchor="end"
             >
-              {fmtMoney(t)}
+              {fmtRSI(t)}
             </text>
           ))}
           <path
             d={spreadPath}
             fill="none"
-            stroke="var(--robin-neon)"
+            stroke="var(--color-green-accent)"
             strokeWidth={1.8}
           />
           <text x={PAD_L} y={H - 6} fontSize={10} fill="var(--text-faint)">

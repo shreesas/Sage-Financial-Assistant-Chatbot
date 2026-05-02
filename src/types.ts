@@ -1,4 +1,60 @@
-export type PairKey = 'V_MA' | 'KO_PEP' | 'F_GM';
+export type PairKey =
+  | 'V_MA'
+  | 'AAPL_MSFT'
+  | 'NVDA_AMD'
+  | 'CRM_ORCL'
+  | 'INTC_QCOM'
+  | 'IBM_ACN'
+  | 'JPM_BAC'
+  | 'GS_MS'
+  | 'C_WFC'
+  | 'AXP_COF'
+  | 'SCHW_ICE'
+  | 'JNJ_PFE'
+  | 'LLY_NVO'
+  | 'MRK_BMY'
+  | 'UNH_CVS'
+  | 'TMO_DHR'
+  | 'AMZN_EBAY'
+  | 'MCD_WEN'
+  | 'HD_LOW'
+  | 'NKE_LULU'
+  | 'F_GM'
+  | 'META_GOOGL'
+  | 'DIS_WBD'
+  | 'CMCSA_CHTR'
+  | 'T_VZ'
+  | 'NFLX_PARA'
+  | 'CAT_DE'
+  | 'LMT_NOC'
+  | 'UNP_CSX'
+  | 'BA_EADSY'
+  | 'HON_GE'
+  | 'KO_PEP'
+  | 'WMT_TGT'
+  | 'PG_CL'
+  | 'COST_WMT'
+  | 'KHC_CAG'
+  | 'XOM_CVX'
+  | 'SHEL_BP'
+  | 'COP_EOG'
+  | 'SLB_HAL'
+  | 'VLO_PSX'
+  | 'PLD_COLD'
+  | 'SPG_KIM'
+  | 'AMT_CCI'
+  | 'AVB_EQR'
+  | 'PSA_EXR'
+  | 'NEE_SO'
+  | 'DUK_D'
+  | 'AEP_XEL'
+  | 'ED_PEG'
+  | 'SRE_NI'
+  | 'DOW_DD'
+  | 'FCX_SCCO'
+  | 'NUE_STLD'
+  | 'APD_LIN'
+  | 'SHW_PPG';
 
 export type WindowKey = '30d' | '90d' | '1y';
 
@@ -61,13 +117,8 @@ export type SpreadStats = {
   zScore: number;
 };
 
-export type StockDatasetKey =
-  | 'visa'
-  | 'mastercard'
-  | 'coca_cola'
-  | 'pepsico'
-  | 'ford'
-  | 'gm';
+/** JSON key in `stock_data.json` for a price series (only some pairs have live data today). */
+export type StockDatasetKey = string;
 
 export type RawPriceRow = {
   Date: string;
@@ -89,6 +140,6 @@ export type RawCalcRow = {
   'Z-score': number;
 };
 
-export type StockDataFile = Record<StockDatasetKey, RawPriceRow[]> & {
+export type StockDataFile = Record<string, RawPriceRow[]> & {
   calculated_data: RawCalcRow[];
 };

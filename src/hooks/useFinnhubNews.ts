@@ -1,21 +1,13 @@
 import { useEffect, useState } from 'react';
+import { PAIRS } from '../data/pairs';
 import { PAIR_NEWS, type NewsItem } from '../data/sageFlow';
 import type { PairKey } from '../types';
 
-type NewsMap = Record<PairKey, NewsItem[]>;
-
-const TICKER_TO_PAIR: Record<string, PairKey> = {
-  V: 'V_MA',
-  MA: 'V_MA',
-  KO: 'KO_PEP',
-  PEP: 'KO_PEP',
-  F: 'F_GM',
-  GM: 'F_GM',
-};
-
-const TICKERS = Object.keys(TICKER_TO_PAIR) as (keyof typeof TICKER_TO_PAIR)[];
-
 const API_KEY = import.meta.env.VITE_FINNHUB_API_KEY as string | undefined;
+
+// Per-pair cache and in-flight deduplication
+const pairCache = new Map<PairKey, NewsItem[]>();
+const pairInflight = new Map<PairKey, Promise<NewsItem[]>>();
 
 function isoDate(d: Date): string {
   return d.toISOString().slice(0, 10);
@@ -32,8 +24,9 @@ type FinnhubArticle = {
   headline: string;
   source: string;
   datetime: number;
-  related: string;
   url: string;
+  image: string;
+  summary: string;
 };
 
 async function fetchTickerNews(
@@ -42,83 +35,99 @@ async function fetchTickerNews(
   to: string,
   token: string
 ): Promise<FinnhubArticle[]> {
-  const url = `https://finnhub.io/api/v1/company-news?symbol=${ticker}&from=${from}&to=${to}&token=${token}`;
-  const res = await fetch(url);
+  const res = await fetch(
+    `https://finnhub.io/api/v1/company-news?symbol=${encodeURIComponent(ticker)}&from=${from}&to=${to}&token=${token}`
+  );
   if (!res.ok) throw new Error(`Finnhub ${res.status} for ${ticker}`);
   return res.json() as Promise<FinnhubArticle[]>;
 }
 
+function topArticle(articles: FinnhubArticle[], ticker: string): NewsItem | null {
+  if (!articles.length) return null;
+  const top = [...articles].sort((a, b) => b.datetime - a.datetime)[0];
+  return {
+    ticker,
+    headline: top.headline,
+    source: top.source,
+    date: unixToDateString(top.datetime),
+    url: top.url,
+    image: top.image || undefined,
+    summary: top.summary || undefined,
+  };
+}
+
+async function loadPairNews(pair: PairKey): Promise<NewsItem[]> {
+  const meta = PAIRS[pair];
+  const to = new Date();
+  const from = new Date();
+  from.setDate(from.getDate() - 7);
+  const fromStr = isoDate(from);
+  const toStr = isoDate(to);
+  const token = API_KEY!;
+
+  const [resA, resB] = await Promise.allSettled([
+    fetchTickerNews(meta.legA.ticker, fromStr, toStr, token),
+    fetchTickerNews(meta.legB.ticker, fromStr, toStr, token),
+  ]);
+
+  const items: NewsItem[] = [];
+  if (resA.status === 'fulfilled') {
+    const item = topArticle(resA.value, meta.legA.ticker);
+    if (item) items.push(item);
+  }
+  if (resB.status === 'fulfilled') {
+    const item = topArticle(resB.value, meta.legB.ticker);
+    if (item) items.push(item);
+  }
+
+  // Fall back to static news if Finnhub returned nothing for this pair
+  return items.length > 0 ? items : (PAIR_NEWS[pair] ?? []);
+}
+
 export type FinnhubNewsResult = {
-  news: NewsMap;
+  items: NewsItem[];
   loading: boolean;
 };
 
-let cached: NewsMap | null = null;
-
-export function useFinnhubNews(): FinnhubNewsResult {
-  const [news, setNews] = useState<NewsMap>(() => cached ?? PAIR_NEWS);
-  const [loading, setLoading] = useState(!cached);
+export function useFinnhubNews(pair: PairKey): FinnhubNewsResult {
+  const [items, setItems] = useState<NewsItem[]>(
+    () => pairCache.get(pair) ?? PAIR_NEWS[pair] ?? []
+  );
+  const [loading, setLoading] = useState(!pairCache.has(pair) && !!API_KEY);
 
   useEffect(() => {
-    if (cached) return;
+    // Already cached — use it immediately
+    if (pairCache.has(pair)) {
+      setItems(pairCache.get(pair)!);
+      setLoading(false);
+      return;
+    }
+
+    // No API key — stay on static news
     if (!API_KEY) {
       setLoading(false);
       return;
     }
 
-    const to = new Date();
-    const from = new Date();
-    from.setDate(from.getDate() - 7);
-    const fromStr = isoDate(from);
-    const toStr = isoDate(to);
-
     let cancelled = false;
 
-    Promise.allSettled(
-      TICKERS.map((ticker) => fetchTickerNews(ticker, fromStr, toStr, API_KEY))
-    ).then((results) => {
-      if (cancelled) return;
+    // Attach to an existing in-flight request for this pair, or start a new one
+    const p = pairInflight.get(pair) ?? loadPairNews(pair);
+    if (!pairInflight.has(pair)) pairInflight.set(pair, p);
 
-      const accumulated: Partial<Record<PairKey, NewsItem[]>> = {};
-
-      results.forEach((result, i) => {
-        const ticker = TICKERS[i];
-        const pairKey = TICKER_TO_PAIR[ticker];
-
-        if (result.status !== 'fulfilled' || result.value.length === 0) return;
-
-        // Sort by newest first, pick the top article for this ticker.
-        const sorted = [...result.value].sort((a, b) => b.datetime - a.datetime);
-        const top = sorted[0];
-
-        const item: NewsItem = {
-          ticker,
-          headline: top.headline,
-          source: top.source,
-          date: unixToDateString(top.datetime),
-          url: top.url,
-        };
-
-        if (!accumulated[pairKey]) accumulated[pairKey] = [];
-        accumulated[pairKey]!.push(item);
-      });
-
-      // Build final map: use live data where available, fall back to static otherwise.
-      const merged: NewsMap = {
-        V_MA: accumulated.V_MA?.length ? accumulated.V_MA : PAIR_NEWS.V_MA,
-        KO_PEP: accumulated.KO_PEP?.length ? accumulated.KO_PEP : PAIR_NEWS.KO_PEP,
-        F_GM: accumulated.F_GM?.length ? accumulated.F_GM : PAIR_NEWS.F_GM,
-      };
-
-      cached = merged;
-      setNews(merged);
-      setLoading(false);
+    p.then((result) => {
+      pairCache.set(pair, result);
+      pairInflight.delete(pair);
+      if (!cancelled) { setItems(result); setLoading(false); }
+    }).catch(() => {
+      pairInflight.delete(pair);
+      const fallback = PAIR_NEWS[pair] ?? [];
+      pairCache.set(pair, fallback);
+      if (!cancelled) { setItems(fallback); setLoading(false); }
     });
 
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+    return () => { cancelled = true; };
+  }, [pair]);
 
-  return { news, loading };
+  return { items, loading };
 }

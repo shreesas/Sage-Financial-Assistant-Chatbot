@@ -1,13 +1,19 @@
 import { useCallback, useReducer } from 'react';
-import { PAIRS, PAIR_ORDER, WINDOW_LABEL } from '../data/pairs';
+import { PAIRS, WINDOW_LABEL } from '../data/pairs';
 import {
   PAIR_PICK_LINE,
   SAGE_LINES,
+  SECTOR_ACK,
+  SECTOR_CHIPS,
+  SECTOR_PAIR_MAP,
   detectMethod,
   detectPair,
+  detectSector,
   detectThreshold,
   detectWindow,
+  extractEmailAddress,
   isActionRequest,
+  isArbitrageWatchlistPick,
   isGreeting,
   isNo,
   isYes,
@@ -22,6 +28,7 @@ import type {
 
 type Step =
   | 'awaiting_greeting'
+  | 'awaiting_sector'
   | 'awaiting_task'
   | 'awaiting_pair'
   | 'awaiting_window'
@@ -30,6 +37,7 @@ type Step =
   | 'awaiting_threshold'
   | 'awaiting_threshold_custom'
   | 'awaiting_method'
+  | 'awaiting_email_address'
   | 'awaiting_followup'
   | 'closed';
 
@@ -41,6 +49,7 @@ type State = {
   threshold: number | null;
   method: NotificationMethod | null;
   currentZ: number | null;
+  sector: string | null;
 };
 
 type Resolve = {
@@ -62,6 +71,7 @@ const initialState: State = {
   threshold: null,
   method: null,
   currentZ: null,
+  sector: null,
 };
 
 let _id = 0;
@@ -106,27 +116,28 @@ function reducer(state: State, action: Action): State {
   return next;
 }
 
-function pairChips(): OptionChip[] {
-  return PAIR_ORDER.map((p) => {
-    const meta = PAIRS[p];
-    return {
-      id: `pair:${p}`,
-      label: `${meta.legA.name} & ${meta.legB.name}`,
-    };
-  });
+function pairChips(keys: PairKey[]): OptionChip[] {
+  return keys.map((p) => ({
+    id: `pair:${p}`,
+    label: `${PAIRS[p].legA.name} & ${PAIRS[p].legB.name}`,
+  }));
+}
+
+function sectorChips(): OptionChip[] {
+  return SECTOR_CHIPS;
 }
 
 function windowChips(): OptionChip[] {
   return [
     { id: 'window:30d', label: '30 days' },
-    { id: 'window:90d', label: '90 days', primary: true },
+    { id: 'window:90d', label: '90 days' },
     { id: 'window:1y', label: '1 year' },
   ];
 }
 
 function yesNoChips(): OptionChip[] {
   return [
-    { id: 'yes', label: 'Yes', primary: true },
+    { id: 'yes', label: 'Yes' },
     { id: 'no', label: 'No' },
   ];
 }
@@ -134,7 +145,7 @@ function yesNoChips(): OptionChip[] {
 function thresholdChips(): OptionChip[] {
   return [
     { id: 'threshold:1.5', label: '1.5 — earlier' },
-    { id: 'threshold:2', label: '2 — common', primary: true },
+    { id: 'threshold:2', label: '2 — common' },
     { id: 'threshold:3', label: '3 — major' },
     { id: 'threshold:custom', label: 'Custom' },
   ];
@@ -151,7 +162,7 @@ function methodChips(): OptionChip[] {
 function followupChips(): OptionChip[] {
   return [
     { id: 'followup:yes', label: 'Yes, another pair' },
-    { id: 'followup:no', label: "No, that's it", primary: true },
+    { id: 'followup:no', label: "No, that's it" },
   ];
 }
 
@@ -173,13 +184,7 @@ export function useConversation(getZ: GetZ): ConversationApi {
   const [state, dispatch] = useReducer(reducer, initialState, (s): State => {
     return {
       ...s,
-      messages: [
-        {
-          id: nextId(),
-          speaker: 'sage',
-          text: SAGE_LINES.greeting,
-        },
-      ],
+      messages: [],
     };
   });
 
@@ -190,7 +195,7 @@ export function useConversation(getZ: GetZ): ConversationApi {
         push: [
           {
             speaker: 'sage',
-            text: `${PAIR_PICK_LINE[pair]} ${SAGE_LINES.windowPrompt}`,
+            text: `${PAIR_PICK_LINE[pair] ?? `Good pick — ${PAIRS[pair].legA.name} and ${PAIRS[pair].legB.name} often move in sync.`} ${SAGE_LINES.windowPrompt}`,
             options: windowChips(),
           },
         ],
@@ -310,6 +315,19 @@ export function useConversation(getZ: GetZ): ConversationApi {
     []
   );
 
+  const askEmailAddress = useCallback((resolved?: string): Resolve => {
+    return {
+      resolveLastOptions: resolved,
+      push: [
+        {
+          speaker: 'sage',
+          text: SAGE_LINES.emailAddressPrompt,
+        },
+      ],
+      patch: { step: 'awaiting_email_address' },
+    };
+  }, []);
+
   const confirmAlert = useCallback(
     (
       pair: PairKey,
@@ -359,17 +377,18 @@ export function useConversation(getZ: GetZ): ConversationApi {
       push: [
         {
           speaker: 'sage',
-          text: 'Sure — pick another pair to dig into.',
-          slots: [{ kind: 'pairs' }],
+          text: SAGE_LINES.sectorPrompt,
+          options: sectorChips(),
         },
       ],
       patch: {
-        step: 'awaiting_pair',
+        step: 'awaiting_sector',
         pair: null,
         window: null,
         threshold: null,
         method: null,
         currentZ: null,
+        sector: null,
       },
     };
   }, []);
@@ -397,13 +416,18 @@ export function useConversation(getZ: GetZ): ConversationApi {
 
       switch (state.step) {
         case 'awaiting_greeting': {
-          if (isGreeting(t) || isYes(t) || fromChip) {
+          if (
+            isGreeting(t) ||
+            isYes(t) ||
+            fromChip ||
+            isArbitrageWatchlistPick(t)
+          ) {
             return {
               resolveLastOptions: resolved,
               push: [
                 {
                   speaker: 'sage',
-                  text: SAGE_LINES.greetingReply,
+                  text: SAGE_LINES.taskPrompt,
                 },
               ],
               patch: { step: 'awaiting_task' },
@@ -412,6 +436,22 @@ export function useConversation(getZ: GetZ): ConversationApi {
           return askAgain(
             "Say hi when you're ready and I'll show you a few pairs to look at."
           );
+        }
+
+        case 'awaiting_sector': {
+          const sectorId = detectSector(t);
+          const keys = SECTOR_PAIR_MAP[sectorId];
+          return {
+            resolveLastOptions: resolved,
+            push: [
+              {
+                speaker: 'sage',
+                text: SECTOR_ACK[sectorId],
+                options: pairChips(keys),
+              },
+            ],
+            patch: { step: 'awaiting_pair', sector: sectorId },
+          };
         }
 
         case 'awaiting_task': {
@@ -423,25 +463,27 @@ export function useConversation(getZ: GetZ): ConversationApi {
               push: [
                 {
                   speaker: 'sage',
-                  text: SAGE_LINES.pairsIntro,
-                  slots: [{ kind: 'pairs' }],
+                  text: SAGE_LINES.sectorPrompt,
+                  options: sectorChips(),
                 },
               ],
-              patch: { step: 'awaiting_pair' },
+              patch: { step: 'awaiting_sector' },
             };
           }
           if (isNo(t)) return close(resolved);
           return askAgain(
-            "I can find correlated stock pairs, check a spread, or set up an alert. What would you like to do?"
+            "I can find correlated stock pairs, check how a pair's spread is behaving, or set up alerts. What would you like to do?"
           );
         }
 
         case 'awaiting_pair': {
+          if (t in PAIRS) return advanceFromPair(t as PairKey, resolved);
           const p = detectPair(t);
           if (p) return advanceFromPair(p, resolved);
+          const sectorId = state.sector ?? 'other';
           return askAgain(
-            "I couldn't tell which pair you meant. Tap one of the chips or name a pair like 'Visa and Mastercard'.",
-            pairChips()
+            "I couldn't tell which pair you meant. Tap one of the chips.",
+            pairChips(SECTOR_PAIR_MAP[sectorId])
           );
         }
 
@@ -506,6 +548,7 @@ export function useConversation(getZ: GetZ): ConversationApi {
           )
             return null;
           const m = detectMethod(t);
+          if (m === 'email') return askEmailAddress(resolved);
           if (m)
             return confirmAlert(
               state.pair,
@@ -517,6 +560,22 @@ export function useConversation(getZ: GetZ): ConversationApi {
           return askAgain(
             'Push, email, or SMS — whichever works best.',
             methodChips()
+          );
+        }
+
+        case 'awaiting_email_address': {
+          if (!state.pair || state.threshold == null) return null;
+          const addr = extractEmailAddress(t);
+          if (addr)
+            return confirmAlert(
+              state.pair,
+              state.threshold,
+              'email',
+              state.currentZ,
+              resolved
+            );
+          return askAgain(
+            'Please share a valid email address, like name@example.com.'
           );
         }
 
@@ -544,6 +603,7 @@ export function useConversation(getZ: GetZ): ConversationApi {
       askThreshold,
       askThresholdCustom,
       askMethod,
+      askEmailAddress,
       confirmAlert,
       restart,
       close,
@@ -566,9 +626,10 @@ export function useConversation(getZ: GetZ): ConversationApi {
       // Translate chip ids into the input handler's expected text.
       if (id === 'yes') asText = 'Yes';
       else if (id === 'no') asText = 'No';
-      else if (id.startsWith('pair:')) {
-        const pk = id.slice('pair:'.length) as PairKey;
-        asText = `${PAIRS[pk].legA.name} and ${PAIRS[pk].legB.name}`;
+      else if (id.startsWith('sector:')) {
+        asText = id.slice('sector:'.length); // 'technology', 'finance', etc.
+      } else if (id.startsWith('pair:')) {
+        asText = id.slice('pair:'.length); // raw key e.g. 'AAPL_MSFT' — checked via `t in PAIRS`
       } else if (id.startsWith('window:')) {
         const w = id.slice('window:'.length);
         asText = w === '1y' ? '1 year' : w === '90d' ? '90 days' : '30 days';

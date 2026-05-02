@@ -1,10 +1,12 @@
-import type { PairKey } from '../types';
+import type { OptionChip, PairKey } from '../types';
 
 export const SAGE_LINES = {
   greeting:
-    "Hi, I'm Sage. I can help you find correlated stock pairs, check how a pair's spread is behaving, or set up alerts. What would you like to do?",
+    "Hi! I am Sage. I can help you find correlated stock pairs, check spread behavior, explore news, and practice paper trading. What would you like to do?",
   greetingReply:
     "Hello! How can I help you today? I can find correlated stock pairs, check a spread, or set up alerts.",
+  taskPrompt:
+    "I can help you find correlated stock pairs, check how a pair's spread is behaving, or set up alerts. What would you like to do?",
   pairsIntro:
     'Here are three pairs that have moved together closely over the last 90 days. These stocks usually rise and fall in sync — when one drifts away from the other, it can be worth a closer look. Pick one to dig in.',
   windowPrompt:
@@ -16,13 +18,48 @@ export const SAGE_LINES = {
   alertPrompt:
     "Want me to set up an alert so you'll know if the gap shifts meaningfully?",
   thresholdPrompt:
-    "I'll alert you when the gap looks unusually large compared to historical norms, measured in standard deviation. How sensitive should I be?\n• 1.5 — earlier heads-up\n• 2 — common choice\n• 3 — only major divergence\nOr pick your own number.",
+    "I'll alert you when the gap looks unusually large compared to historical norms, measured in standard deviation. How sensitive should I be?",
   methodPrompt: 'And how should I reach you — push, email, or SMS?',
+  emailAddressPrompt: 'Can you share your email address?',
   followupPrompt: 'Anything else?',
   signoff: 'Great. Come back anytime to check pairs or adjust alerts.',
+  sectorPrompt: 'Great! To get started, which sector would you like to focus on?',
 };
 
-export const PAIR_PICK_LINE: Record<PairKey, string> = {
+export const SECTOR_CHIPS: OptionChip[] = [
+  { id: 'sector:technology', label: 'Technology' },
+  { id: 'sector:healthcare', label: 'Healthcare' },
+  { id: 'sector:finance',    label: 'Finance' },
+  { id: 'sector:consumer',   label: 'Consumer Goods' },
+  { id: 'sector:other',      label: 'Other' },
+];
+
+export const SECTOR_PAIR_MAP: Record<string, PairKey[]> = {
+  technology: ['AAPL_MSFT', 'NVDA_AMD', 'CRM_ORCL'],
+  healthcare: ['JNJ_PFE', 'LLY_NVO', 'UNH_CVS'],
+  finance:    ['V_MA', 'JPM_BAC', 'GS_MS'],
+  consumer:   ['KO_PEP', 'WMT_TGT', 'HD_LOW'],
+  other:      ['META_GOOGL', 'XOM_CVX', 'CAT_DE'],
+};
+
+export const SECTOR_ACK: Record<string, string> = {
+  technology: 'Here are three closely correlated tech pairs. Pick one to dig in.',
+  healthcare: 'Here are three healthcare pairs worth watching. Pick one to dig in.',
+  finance:    'Here are three finance pairs that tend to move together. Pick one to dig in.',
+  consumer:   'Here are three consumer pairs with strong historical correlation. Pick one to dig in.',
+  other:      'Here are three pairs from other sectors. Pick one to dig in.',
+};
+
+export function detectSector(text: string): string {
+  const t = text.toLowerCase();
+  if (/tech|software|semicon|chip|apple|microsoft|nvidia|aapl|msft|nvda|amd/i.test(t)) return 'technology';
+  if (/health|pharma|medic|drug|hospital|lilly|pfizer|jnj/i.test(t)) return 'healthcare';
+  if (/financ|bank|credit|invest|payment|visa|jpmorgan|goldman/i.test(t)) return 'finance';
+  if (/consumer|retail|food|beverage|grocery|coca|pepsi|walmart|target/i.test(t)) return 'consumer';
+  return 'other';
+}
+
+export const PAIR_PICK_LINE: Partial<Record<PairKey, string>> = {
   V_MA: 'Good pick — Visa and Mastercard are two payment-network heavyweights with a long history of moving together.',
   KO_PEP:
     'Great choice — two beverage giants with a long history of moving together.',
@@ -35,9 +72,11 @@ export type NewsItem = {
   source: string;
   date: string;
   url?: string;
+  image?: string;
+  summary?: string;
 };
 
-export const PAIR_NEWS: Record<PairKey, NewsItem[]> = {
+export const PAIR_NEWS: Partial<Record<PairKey, NewsItem[]>> = {
   V_MA: [
     {
       ticker: 'V',
@@ -45,6 +84,7 @@ export const PAIR_NEWS: Record<PairKey, NewsItem[]> = {
         'Visa reported strong Q1 earnings, with analysts pointing to steady revenue growth across market conditions — generally positive for V.',
       source: 'Yahoo Finance',
       date: 'April 2026',
+      summary: 'Steady revenue growth across market conditions signals a broadly positive outlook for Visa.',
     },
     {
       ticker: 'MA',
@@ -52,6 +92,7 @@ export const PAIR_NEWS: Record<PairKey, NewsItem[]> = {
         'Mastercard heads into Q1 earnings, with analysts watching margins and cross-border volume — a mixed setup for MA.',
       source: 'Yahoo Finance',
       date: 'April 2026',
+      summary: 'Analysts are watching margin trends and cross-border volume as key signals for Mastercard this quarter.',
     },
   ],
   KO_PEP: [
@@ -61,6 +102,7 @@ export const PAIR_NEWS: Record<PairKey, NewsItem[]> = {
         'Coca-Cola reported Q1 results, with analysts noting resilient pricing power despite volume headwinds — broadly neutral for KO.',
       source: 'Yahoo Finance',
       date: 'April 2026',
+      summary: 'Resilient pricing power offsets volume headwinds, leaving the outlook broadly neutral for Coca-Cola.',
     },
     {
       ticker: 'PEP',
@@ -68,6 +110,7 @@ export const PAIR_NEWS: Record<PairKey, NewsItem[]> = {
         'PepsiCo cut its annual guidance after a softer-than-expected quarter, citing tariff pressure and cautious consumers — a cautionary signal for PEP.',
       source: 'Yahoo Finance',
       date: 'April 2026',
+      summary: 'Tariff pressure and cautious consumer spending drove a guidance cut, flagging downside risk for PepsiCo.',
     },
   ],
   F_GM: [
@@ -77,6 +120,7 @@ export const PAIR_NEWS: Record<PairKey, NewsItem[]> = {
         'Ford is in talks with a Chinese automaker on technology sharing, which analysts are watching given tariff exposure — a mixed signal for F.',
       source: 'Yahoo Finance',
       date: 'April 2026',
+      summary: 'Technology-sharing talks with a Chinese partner add uncertainty given Ford\'s tariff exposure.',
     },
     {
       ticker: 'GM',
@@ -84,6 +128,7 @@ export const PAIR_NEWS: Record<PairKey, NewsItem[]> = {
         'GM is set to report Q1 earnings, with analysts flagging tariff risks and consumer softness as the main uncertainties — a cautious setup for GM.',
       source: 'CNBC / Yahoo Finance',
       date: 'April 2026',
+      summary: 'Tariff risks and softening consumer demand are the main uncertainties heading into GM\'s Q1 report.',
     },
   ],
 };
@@ -118,8 +163,14 @@ export function isGreeting(text: string): boolean {
   return GREETING_RE.test(t);
 }
 
+/** User picked Arbitrage Watchlist from the category empty-state. */
+export function isArbitrageWatchlistPick(text: string): boolean {
+  const t = text.trim().toLowerCase().replace(/\s+/g, ' ');
+  return t === 'arbitrage watchlist';
+}
+
 const ACTION_REQUEST_RE =
-  /\b(pair|pairs|spread|correlat|stock|analyz|find|check|compare|alert|show|look\s*at|tell\s*me|help\s*me)\b/i;
+  /\b(pair|pairs|spread|correlat|stock|analyz|find|check|compare|alert|show|look\s*(at|for)|tell\s*me|help\s*me|start|explore|view|see|get|want|what\s*are|behav|watchlist|arbitrage|diverge|trade|trading|ratio|gap|signal)\b/i;
 
 export function isActionRequest(text: string): boolean {
   return ACTION_REQUEST_RE.test(text.trim()) || isYes(text);
@@ -219,4 +270,10 @@ export function detectMethod(text: string): 'push' | 'email' | 'sms' | null {
   if (/\b(e[-\s]?mail|mail\s*me|inbox)\b/.test(t)) return 'email';
   if (/\b(sms|text|texting)\b/.test(t)) return 'sms';
   return null;
+}
+
+/** Loose but practical validation for typed email in chat (local@domain.tld). */
+export function extractEmailAddress(text: string): string | null {
+  const m = text.trim().match(/\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/i);
+  return m ? m[0] : null;
 }

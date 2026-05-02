@@ -7,45 +7,31 @@ type Props = {
 };
 
 export default function PairsTable({ onPick, disabled }: Props) {
+  const clickable = !!onPick && !disabled;
   return (
-    <div className="widget">
-      <div className="widget__title">Top correlated pairs · last 90 days</div>
-      <table className="tbl" aria-label="Suggested correlated pairs">
-        <thead>
-          <tr>
-            <th>Pair</th>
-            <th>Sector</th>
-          </tr>
-        </thead>
-        <tbody>
-          {PAIR_ORDER.map((key: PairKey) => {
-            const meta = PAIRS[key];
-            const chip: OptionChip = {
-              id: `pair:${key}`,
-              label: `${meta.legA.name} & ${meta.legB.name}`,
-            };
-            return (
-              <tr
-                key={key}
-                className={
-                  onPick && !disabled ? 'tbl__row--clickable' : undefined
-                }
-                onClick={
-                  onPick && !disabled ? () => onPick(chip) : undefined
-                }
-              >
-                <td>
-                  <div className="tbl__pair">
-                    {meta.legA.name} ({meta.legA.ticker}) ·{' '}
-                    {meta.legB.name} ({meta.legB.ticker})
-                  </div>
-                </td>
-                <td className="tbl__sector">{meta.sector}</td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
+    <div className="pick-list" aria-label="Suggested correlated pairs">
+      <div className="pick-list__header">Top correlated pairs · last 90 days</div>
+      {PAIR_ORDER.map((key: PairKey) => {
+        const meta = PAIRS[key];
+        const chip: OptionChip = {
+          id: `pair:${key}`,
+          label: `${meta.legA.name} & ${meta.legB.name}`,
+        };
+        return (
+          <button
+            key={key}
+            className={`pick-card${!clickable ? ' pick-card--disabled' : ''}`}
+            onClick={clickable ? () => onPick!(chip) : undefined}
+            disabled={!clickable}
+            type="button"
+          >
+            <span className="pick-card__primary">
+              {meta.legA.name} ({meta.legA.ticker}) · {meta.legB.name} ({meta.legB.ticker})
+            </span>
+            <span className="pick-card__secondary">{meta.sector}</span>
+          </button>
+        );
+      })}
     </div>
   );
 }

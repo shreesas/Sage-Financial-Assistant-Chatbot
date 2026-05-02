@@ -4,6 +4,7 @@ import { useStockData } from '../hooks/useStockData';
 import type { Message, OptionChip, WidgetSlot } from '../types';
 import AlertSummary from './AlertSummary';
 import Composer from './Composer';
+import ThemeToggle from './ThemeToggle';
 import EmptyState from './EmptyState';
 import MessageBubble from './MessageBubble';
 import NewsCards from './NewsCards';
@@ -120,24 +121,33 @@ export default function Chat() {
       <div className="chat__scroll" ref={scrollRef}>
         <div className="chat__inner">
           {!userHasReplied ? (
-            <EmptyState />
+            <EmptyState
+              onSelectCategory={(id) => {
+                if (id === 'arbitrage') sendUserText('Arbitrage Watchlist');
+              }}
+            />
           ) : (
-            state.messages.map((m) => (
-              <MessageRow
-                key={m.id}
-                message={m}
-                isLatestSage={m.id === latestSageId}
-                onPick={selectOption}
-              />
-            ))
+            <>
+              {state.messages.map((m) => (
+                <MessageRow
+                  key={m.id}
+                  message={m}
+                  isLatestSage={m.id === latestSageId}
+                  onPick={selectOption}
+                />
+              ))}
+              <div ref={bottomRef} className="chat__scroll-anchor" aria-hidden />
+            </>
           )}
-          <div ref={bottomRef} />
         </div>
       </div>
 
       <div className="chat__composer-wrap">
         <div className="chat__composer-inner">
-          <Composer onSend={sendUserText} disabled={state.step === 'closed'} />
+          <div className="chat__composer-row">
+            <Composer onSend={sendUserText} disabled={state.step === 'closed'} />
+            <ThemeToggle />
+          </div>
         </div>
       </div>
     </div>

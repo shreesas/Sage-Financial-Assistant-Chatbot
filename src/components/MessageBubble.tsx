@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
-import sageAvatar from '../assets/small_sage_profile.png';
-import userAvatar from '../assets/small_user_profile.png';
+import sageAvatar from '../assets/small_sage_profile.svg';
+import userAvatar from '../assets/small_user_profile.svg';
 import type { Message } from '../types';
 
 type Props = {
@@ -13,18 +13,22 @@ export default function MessageBubble({ message, children }: Props) {
   return (
     <div className={`msg msg--${isSage ? 'sage' : 'user'}`}>
       {isSage && (
-        <div className="msg__avatar msg__avatar--sage" aria-hidden="true">
-          <img src={sageAvatar} alt="" />
-        </div>
+        <span className="msg__avatar-wrap">
+          <div className="msg__avatar msg__avatar--sage" aria-hidden="true">
+            <img src={sageAvatar} alt="" />
+          </div>
+        </span>
       )}
       <div className="msg__body">
         {message.text && <div className="msg__text">{message.text}</div>}
         {children}
       </div>
       {!isSage && (
-        <div className="msg__avatar msg__avatar--user" aria-hidden="true">
-          <img src={userAvatar} alt="" />
-        </div>
+        <span className="msg__avatar-wrap">
+          <div className="msg__avatar msg__avatar--user" aria-hidden="true">
+            <img src={userAvatar} alt="" />
+          </div>
+        </span>
       )}
     </div>
   );

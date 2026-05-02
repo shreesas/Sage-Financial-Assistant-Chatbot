@@ -1,14 +1,30 @@
 :root {
+  /* Canonical palette */
   --robin-neon: #cdff00;
-  --robin-neon-soft: rgba(205, 255, 0, 0.15);
-  --robin-neon-edge: rgba(205, 255, 0, 0.45);
-  --robin-black: #1d190e;
   --heather-1: #d2cdc7;
   --heather-2: #b5b1ab;
   --heather-3: #898583;
+  --robin-black: #1d190e;
   --white: #fefefe;
 
-  --canvas: #000000;
+  --color-green-accent: #00c807;
+  --color-red-accent: #ff5101;
+
+  /** Darken green accent for hover / pressed offsets (pairs with neon borders using green shadow). */
+  --color-green-hover: color-mix(in srgb, var(--color-green-accent) 72%, #000000);
+
+  /* Robin Neon tints — rgb(205, 255, 0) */
+  --robin-neon-soft: rgba(205, 255, 0, 0.15);
+  --robin-neon-edge: rgba(205, 255, 0, 0.45);
+  --robin-neon-glow: rgba(205, 255, 0, 0.18);
+
+  /* Green tints — chart / semantic green (rgb(0, 200, 7)) */
+  --color-green-soft: rgba(0, 200, 7, 0.15);
+  --color-green-edge: rgba(0, 200, 7, 0.45);
+
+  --avatar-user: var(--white);
+
+  --canvas: #141414;
   --surface: #111111;
   --surface-2: #1a1a1a;
   --surface-3: #232323;
@@ -26,4 +42,26 @@
 
   --font-sans: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+html[data-theme='light'] {
+  --robin-neon-soft: rgba(205, 255, 0, 0.12);
+  --robin-neon-edge: rgba(205, 255, 0, 0.35);
+  --robin-neon-glow: rgba(205, 255, 0, 0.16);
+
+  --color-green-soft: rgba(0, 200, 7, 0.12);
+  --color-green-edge: rgba(0, 200, 7, 0.35);
+
+  --avatar-user: #d4d4d8;
+
+  --canvas: #f4f4f5;
+  --surface: #ffffff;
+  --surface-2: #fafafa;
+  --surface-3: #f4f4f5;
+  --border: #e4e4e7;
+  --border-strong: #d4d4d8;
+
+  --text: #18181b;
+  --text-muted: #636370;
+  --text-faint: #6e6e78;
 }

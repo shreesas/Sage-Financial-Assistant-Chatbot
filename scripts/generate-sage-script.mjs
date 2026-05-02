@@ -206,6 +206,31 @@ const WINDOW_LABEL = {
   '1-year': { key: '1y', short: '1 year', captionWindow: '1-year', long: 'last 12 months' },
 };
 
+const EMAIL_DEMO = 'investor.demo@example.com';
+
+const EMAIL_ADDRESS_TURNS = (pair) =>
+  pair.method.key === 'email'
+    ? [
+        {
+          speaker: 'Sage',
+          message: 'Can you share your email address?',
+        },
+        {
+          speaker: 'User',
+          message: EMAIL_DEMO,
+          utterances: [
+            EMAIL_DEMO,
+            `Sure — ${EMAIL_DEMO}`,
+            `Use ${EMAIL_DEMO}.`,
+            `My email is ${EMAIL_DEMO}.`,
+            `It's ${EMAIL_DEMO}.`,
+            `Send alerts to ${EMAIL_DEMO}.`,
+            `Reach me at ${EMAIL_DEMO}.`,
+          ],
+        },
+      ]
+    : [];
+
 const WINDOW_USER_UTTERANCES = {
   '30d': [
     '30 days.', '30.', 'Thirty days.', 'Short.', 'The short one.',
@@ -290,7 +315,7 @@ const buildScript = (pair) => {
         'Good morning, Sage.', 'Good afternoon, Sage.', 'Greetings, Sage.',
         'Hey.', 'Hi.', 'Hello.', 'Sage.', 'Start.', "Let's begin.",
         'Can we talk?', 'Hey assistant.', 'Hi there.', 'Yo.',
-        "What's up, Sage?", 'Talk to me, Sage.',
+        "What's up, Sage?", 'Talk to me, Sage.','Start',
       ],
     },
     {
@@ -406,6 +431,7 @@ const buildScript = (pair) => {
       message: pair.method.userMessage,
       utterances: pair.method.utterances,
     },
+    ...EMAIL_ADDRESS_TURNS(pair),
     {
       speaker: 'Sage',
       message:
