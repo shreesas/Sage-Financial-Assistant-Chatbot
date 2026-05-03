@@ -15,7 +15,7 @@ export const PAIRS: Record<PairKey, PairMeta> = {
     key: 'V_MA',
     legA: { name: 'Visa', ticker: 'V', dataset: 'visa' },
     legB: { name: 'Mastercard', ticker: 'MA', dataset: 'mastercard' },
-    sector: 'Finance',
+    sector: 'Financials',
     calcKey: 'V / MA',
     correlation90: 0.86,
     description:
