@@ -1,4 +1,4 @@
-import { useCallback, useReducer } from 'react';
+import { useCallback, useReducer, useRef, useState } from 'react';
 import { PAIRS, WINDOW_LABEL } from '../data/pairs';
 import {
   PAIR_NEWS,
@@ -180,9 +180,12 @@ type GetStats = (pair: PairKey, window: WindowKey) => SpreadStats | null;
 
 export type ConversationApi = {
   state: State;
+  isThinking: boolean;
   sendUserText: (text: string) => void;
   selectOption: (chip: OptionChip) => void;
 };
+
+const THINKING_DELAY_MS = 2000;
 
 export function useConversation(getZ: GetZ, getStats: GetStats): ConversationApi {
   const [state, dispatch] = useReducer(reducer, initialState, (s): State => {
@@ -191,6 +194,8 @@ export function useConversation(getZ: GetZ, getStats: GetStats): ConversationApi
       messages: [],
     };
   });
+  const [isThinking, setIsThinking] = useState(false);
+  const thinkingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const advanceFromPair = useCallback(
     (pair: PairKey, resolved?: string): Resolve => {
@@ -623,8 +628,14 @@ export function useConversation(getZ: GetZ, getStats: GetStats): ConversationApi
 
   const sendUserText = useCallback(
     (text: string) => {
+      dispatch({ user: { text } });
       const resolved = handleInput(text, false);
-      dispatch({ user: { text }, resolved: resolved ?? undefined });
+      if (thinkingTimer.current) clearTimeout(thinkingTimer.current);
+      setIsThinking(true);
+      thinkingTimer.current = setTimeout(() => {
+        setIsThinking(false);
+        dispatch({ resolved: resolved ?? undefined });
+      }, THINKING_DELAY_MS);
     },
     [handleInput]
   );
@@ -638,9 +649,9 @@ export function useConversation(getZ: GetZ, getStats: GetStats): ConversationApi
       if (id === 'yes') asText = 'Yes';
       else if (id === 'no') asText = 'No';
       else if (id.startsWith('sector:')) {
-        asText = id.slice('sector:'.length); // 'technology', 'finance', etc.
+        asText = id.slice('sector:'.length);
       } else if (id.startsWith('pair:')) {
-        asText = id.slice('pair:'.length); // raw key e.g. 'AAPL_MSFT' — checked via `t in PAIRS`
+        asText = id.slice('pair:'.length);
       } else if (id.startsWith('window:')) {
         const w = id.slice('window:'.length);
         asText = w === '1y' ? '1 year' : w === '90d' ? '90 days' : '30 days';
@@ -652,14 +663,17 @@ export function useConversation(getZ: GetZ, getStats: GetStats): ConversationApi
         asText = id === 'followup:no' ? 'No' : 'Yes';
       }
 
+      dispatch({ user: { text: chip.label } });
       const resolved = handleInput(asText, true, chip.label);
-      dispatch({
-        user: { text: chip.label },
-        resolved: resolved ?? undefined,
-      });
+      if (thinkingTimer.current) clearTimeout(thinkingTimer.current);
+      setIsThinking(true);
+      thinkingTimer.current = setTimeout(() => {
+        setIsThinking(false);
+        dispatch({ resolved: resolved ?? undefined });
+      }, THINKING_DELAY_MS);
     },
     [handleInput]
   );
 
-  return { state, sendUserText, selectOption };
+  return { state, isThinking, sendUserText, selectOption };
 }

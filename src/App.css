@@ -254,6 +254,32 @@ html[data-theme='light'] .empty__cat-btn:not(:disabled):hover {
   border-radius: 50%;
 }
 
+/* Thinking / typing indicator */
+.thinking-bubble {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 10px 14px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  width: fit-content;
+  margin-top: 4px;
+}
+.thinking-bubble__dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--text-muted);
+  animation: thinking-bounce 1.2s ease-in-out infinite;
+}
+.thinking-bubble__dot:nth-child(2) { animation-delay: 0.2s; }
+.thinking-bubble__dot:nth-child(3) { animation-delay: 0.4s; }
+@keyframes thinking-bounce {
+  0%, 60%, 100% { transform: translateY(0); opacity: 0.5; }
+  30%            { transform: translateY(-6px); opacity: 1; }
+}
+
 html[data-theme='light'] .msg__avatar-wrap {
   box-shadow:
     0 2px 2px rgba(24, 24, 27, 0.12),

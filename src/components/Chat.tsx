@@ -15,6 +15,26 @@ import SpreadChart from './SpreadChart';
 import SpreadTable from './SpreadTable';
 import SpeakingIndicator from './SpeakingIndicator';
 import ListeningIndicator from './ListeningIndicator';
+import sageAvatar from '../assets/small_sage_profile.svg';
+
+function ThinkingBubble() {
+  return (
+    <div className="msg msg--sage">
+      <span className="msg__avatar-wrap">
+        <div className="msg__avatar msg__avatar--sage" aria-hidden="true">
+          <img src={sageAvatar} alt="" />
+        </div>
+      </span>
+      <div className="msg__body">
+        <div className="thinking-bubble" aria-label="Sage is thinking">
+          <span className="thinking-bubble__dot" />
+          <span className="thinking-bubble__dot" />
+          <span className="thinking-bubble__dot" />
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function SoundOnIcon() {
   return (
@@ -117,7 +137,7 @@ export default function Chat() {
     },
     [stock]
   );
-  const { state, sendUserText, selectOption } = useConversation(getZ, stock.getStats);
+  const { state, isThinking, sendUserText, selectOption } = useConversation(getZ, stock.getStats);
   const speech = useAzureSpeech();
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const bottomRef = useRef<HTMLDivElement | null>(null);
@@ -147,7 +167,7 @@ export default function Chat() {
   useEffect(() => {
     if (!userHasReplied) return;
     bottomRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
-  }, [state.messages, userHasReplied]);
+  }, [state.messages, isThinking, userHasReplied]);
 
   // Auto-speak any Sage messages that haven't been spoken yet
   useEffect(() => {
@@ -218,6 +238,7 @@ export default function Chat() {
                   onPick={handleSelectOption}
                 />
               ))}
+              {isThinking && <ThinkingBubble />}
               <div ref={bottomRef} className="chat__scroll-anchor" aria-hidden />
             </>
           )}
