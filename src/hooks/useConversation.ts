@@ -1,6 +1,7 @@
 import { useCallback, useReducer } from 'react';
 import { PAIRS, WINDOW_LABEL } from '../data/pairs';
 import {
+  PAIR_NEWS,
   PAIR_PICK_LINE,
   SAGE_LINES,
   SECTOR_ACK,
@@ -12,6 +13,7 @@ import {
   detectThreshold,
   detectWindow,
   extractEmailAddress,
+  generateSpreadInsight,
   isActionRequest,
   isArbitrageWatchlistPick,
   isGreeting,
@@ -23,6 +25,7 @@ import type {
   NotificationMethod,
   OptionChip,
   PairKey,
+  SpreadStats,
   WindowKey,
 } from '../types';
 
@@ -173,6 +176,7 @@ function methodLabel(m: NotificationMethod): string {
 }
 
 type GetZ = (pair: PairKey, window: WindowKey) => number | null;
+type GetStats = (pair: PairKey, window: WindowKey) => SpreadStats | null;
 
 export type ConversationApi = {
   state: State;
@@ -180,7 +184,7 @@ export type ConversationApi = {
   selectOption: (chip: OptionChip) => void;
 };
 
-export function useConversation(getZ: GetZ): ConversationApi {
+export function useConversation(getZ: GetZ, getStats: GetStats): ConversationApi {
   const [state, dispatch] = useReducer(reducer, initialState, (s): State => {
     return {
       ...s,
@@ -221,7 +225,10 @@ export function useConversation(getZ: GetZ): ConversationApi {
           },
           {
             speaker: 'sage',
-            text: SAGE_LINES.spreadFeedback,
+            text: (() => {
+              const stats = getStats(pair, window);
+              return stats ? generateSpreadInsight(pair, stats) : SAGE_LINES.spreadFeedback;
+            })(),
           },
           {
             speaker: 'sage',
@@ -232,7 +239,7 @@ export function useConversation(getZ: GetZ): ConversationApi {
         patch: { step: 'awaiting_news_confirm', window, currentZ: z },
       };
     },
-    [getZ]
+    [getZ, getStats]
   );
 
   const showNewsThenAlert = useCallback(
@@ -243,6 +250,12 @@ export function useConversation(getZ: GetZ): ConversationApi {
           {
             speaker: 'sage',
             text: 'Two recent stories worth a look:',
+            ttsText: (() => {
+              const items = PAIR_NEWS[pair];
+              if (!items?.length) return 'Two recent stories worth a look.';
+              const titles = items.map((n, i) => `Story ${i + 1}: ${n.headline}`).join('. ');
+              return `Two recent stories worth a look. ${titles}.`;
+            })(),
             slots: [{ kind: 'news', pair }],
           },
           {
@@ -549,14 +562,13 @@ export function useConversation(getZ: GetZ): ConversationApi {
             return null;
           const m = detectMethod(t);
           if (m === 'email') return askEmailAddress(resolved);
-          if (m)
-            return confirmAlert(
-              state.pair,
-              state.threshold,
-              m,
-              state.currentZ,
-              resolved
-            );
+          if (m) {
+            // Re-fetch Z here — data is loaded by this point, unlike at window-selection time
+            const liveZ = state.window
+              ? (getZ(state.pair, state.window) ?? state.currentZ)
+              : state.currentZ;
+            return confirmAlert(state.pair, state.threshold, m, liveZ, resolved);
+          }
           return askAgain(
             'Push, email, or SMS — whichever works best.',
             methodChips()
@@ -566,14 +578,12 @@ export function useConversation(getZ: GetZ): ConversationApi {
         case 'awaiting_email_address': {
           if (!state.pair || state.threshold == null) return null;
           const addr = extractEmailAddress(t);
-          if (addr)
-            return confirmAlert(
-              state.pair,
-              state.threshold,
-              'email',
-              state.currentZ,
-              resolved
-            );
+          if (addr) {
+            const liveZ = state.window
+              ? (getZ(state.pair, state.window) ?? state.currentZ)
+              : state.currentZ;
+            return confirmAlert(state.pair, state.threshold, 'email', liveZ, resolved);
+          }
           return askAgain(
             'Please share a valid email address, like name@example.com.'
           );
@@ -595,6 +605,7 @@ export function useConversation(getZ: GetZ): ConversationApi {
     },
     [
       state,
+      getZ,
       askAgain,
       advanceFromPair,
       advanceFromWindow,

@@ -386,15 +386,15 @@ export function useStockData() {
       getStats: (pair: PairKey, window: WindowKey): SpreadStats | null => {
         if (!data) return null;
         const meta = PAIRS[pair];
-        const staticStats = findCalc(data.calculated_data, meta.calcKey, window);
-        if (staticStats) return staticStats;
+        // Prefer live FMP data — compute Z-score fresh from RSI of fetched prices
         const avA = avPriceCache.get(meta.legA.ticker);
         const avB = avPriceCache.get(meta.legB.ticker);
         if (avA && avB) {
           const series = buildSeriesFromPriceRows(avA, avB, window);
           return computeSpreadStats(pair, window, series, avA, avB);
         }
-        return null;
+        // Fall back to pre-calculated static data while FMP fetch is in progress
+        return findCalc(data.calculated_data, meta.calcKey, window);
       },
       getLatestClose: (pair: PairKey): { a: number; b: number } | null => {
         if (!data) return null;

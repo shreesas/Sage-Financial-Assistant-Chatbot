@@ -1,4 +1,5 @@
-import type { OptionChip, PairKey } from '../types';
+import { PAIRS, WINDOW_LABEL } from './pairs';
+import type { OptionChip, PairKey, SpreadStats, WindowKey } from '../types';
 
 export const SAGE_LINES = {
   greeting:
@@ -148,6 +149,45 @@ export function verdictForZScore(z: number): string {
   return 'A major divergence — this is well outside the historical norm.';
 }
 
+export function generateSpreadInsight(pair: PairKey, stats: SpreadStats): string {
+  const nameA = PAIRS[pair].legA.name;
+  const nameB = PAIRS[pair].legB.name;
+  const { currentSpread, meanSpread, zScore, correlation } = stats;
+  const windowLabel = WINDOW_LABEL[stats.window as WindowKey] ?? stats.window;
+  const fmt = (n: number) => n.toFixed(1);
+
+  const zAbs = Math.abs(zScore);
+  const corrPct = Math.round(Math.abs(correlation) * 100);
+  const diff = fmt(Math.abs(currentSpread - meanSpread));
+  const dir = zScore > 0 ? 'above' : 'below';
+
+  const gapLine = `The table compares today's gap (${fmt(currentSpread)}) to the ${windowLabel} average (${fmt(meanSpread)}) — the chart tracks how that gap has moved over time, with the shaded band showing the normal range and the dashed line marking the mean. Right now the gap is ${diff} points ${dir} average.`;
+
+  let zLine: string;
+  if (zAbs < 0.5) {
+    zLine = 'The pair is trading normally — no unusual divergence to flag.';
+  } else if (zAbs < 1.0) {
+    zLine = `A small drift of ${fmt(zAbs)} standard deviations, but still within the normal day-to-day range.`;
+  } else if (zAbs < 2.0) {
+    zLine = `At ${fmt(zAbs)} standard deviations from average, the spread is stretched — historically gaps this ${zScore > 0 ? 'wide' : 'narrow'} have tended to close back toward the mean.`;
+  } else if (zAbs < 3.0) {
+    zLine = `This is a ${fmt(zAbs)}-sigma move — statistically uncommon, occurring in roughly 5% of historical sessions, which means the gap may be due for a reversal.`;
+  } else {
+    zLine = `A ${fmt(zAbs)}-sigma divergence is extreme and historically rare — worth monitoring closely for a potential snap back.`;
+  }
+
+  let corrLine: string;
+  if (corrPct >= 85) {
+    corrLine = `${nameA} and ${nameB} have a ${corrPct}% historical correlation — they move very closely together, so gaps like this have a strong tendency to close.`;
+  } else if (corrPct >= 70) {
+    corrLine = `With a ${corrPct}% correlation they usually trend the same direction, though independent moves do occur, so treat this as one signal among several.`;
+  } else {
+    corrLine = `Their ${corrPct}% correlation means they don't always move in lockstep, so spreads can sometimes persist longer than expected.`;
+  }
+
+  return `${gapLine} ${zLine} ${corrLine}`;
+}
+
 // Greeting / sure / yes / no detection from utterances in sage_script.json.
 const GREETING_RE =
   /^(hi|hey|hello|yo|sup|good\s*(morning|afternoon|evening)|greetings|sage|start|let'?s\s*begin|hi\s*there|talk\s*to\s*me|what'?s\s*up|can\s*we\s*talk)/i;
@@ -187,50 +227,86 @@ export function isNo(text: string): boolean {
   return NO_RE.test(t);
 }
 
-const PAIR_PHRASES: { pair: PairKey; phrases: RegExp[] }[] = [
+// Thematic phrases kept as a final fallback for descriptive input
+const THEMATIC_PHRASES: { pair: PairKey; phrases: RegExp[] }[] = [
   {
     pair: 'V_MA',
-    phrases: [
-      /\bvisa\b/i,
-      /\bmastercard\b/i,
-      /\bma\b/i,
-      /\bv\s*(and|\+|\/|&)\s*ma\b/i,
-      /\bcredit\s*card\b/i,
-      /\bpayment\s*network/i,
-      /\bfinance\s*pair\b/i,
-    ],
+    phrases: [/\bcredit\s*card\b/i, /\bpayment\s*network/i],
   },
   {
     pair: 'KO_PEP',
-    phrases: [
-      /\bcoca[-\s]?cola\b/i,
-      /\bcoke\b/i,
-      /\bpepsi(co)?\b/i,
-      /\bko\b/i,
-      /\bpep\b/i,
-      /\bsoda\b/i,
-      /\bbeverage\b/i,
-      /\bconsumer\s*goods\b/i,
-    ],
+    phrases: [/\bcoke\b/i, /\bsoda\b/i, /\bbeverage\b/i],
   },
   {
     pair: 'F_GM',
-    phrases: [
-      /\bford\b/i,
-      /\bgm\b/i,
-      /\bgeneral\s*motors\b/i,
-      /\bauto\s*pair\b/i,
-      /\bcar\s*(stocks?|companies)\b/i,
-      /\bdetroit\b/i,
-      /\bindustrials?\b/i,
-    ],
+    phrases: [/\bdetroit\b/i, /\bauto\s*pair\b/i, /\bcar\s*(stocks?|companies)\b/i],
   },
 ];
 
+// Words too generic to use for matching
+const NAME_STOP = new Set([
+  'the', 'a', 'an', 'and', 'of', 'de',
+  'inc', 'co', 'plc', 'group', 'company', 'corporation', 'corp', 'ltd',
+]);
+
+function nameWords(name: string): string[] {
+  return name
+    .toLowerCase()
+    .replace(/&/g, '')               // "AT&T" → "ATT", "Johnson & Johnson" → "Johnson  Johnson"
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .split(/\s+/)
+    .filter((w) => w.length > 1 && !NAME_STOP.has(w));
+}
+
+type PairEntry = {
+  key: PairKey;
+  tickA: string;
+  tickB: string;
+  wordsA: string[];
+  wordsB: string[];
+};
+
+// Precomputed from PAIRS — built once at module load, not on every keystroke
+const ALL_PAIR_ENTRIES: PairEntry[] = Object.values(PAIRS).map((m) => ({
+  key: m.key as PairKey,
+  tickA: m.legA.ticker.toLowerCase(),
+  tickB: m.legB.ticker.toLowerCase(),
+  wordsA: nameWords(m.legA.name),
+  wordsB: nameWords(m.legB.name),
+}));
+
 export function detectPair(text: string): PairKey | null {
-  for (const { pair, phrases } of PAIR_PHRASES) {
+  // Normalise: collapse & (so "AT&T" → "att"), strip punctuation, lowercase
+  const norm = text.toLowerCase().replace(/&/g, '').replace(/[^a-z0-9\s]/g, ' ');
+  const tokens = new Set(norm.split(/\s+/).filter(Boolean));
+
+  const sideA = (e: PairEntry) =>
+    tokens.has(e.tickA) || e.wordsA.some((w) => w.length >= 3 && tokens.has(w));
+  const sideB = (e: PairEntry) =>
+    tokens.has(e.tickB) || e.wordsB.some((w) => w.length >= 3 && tokens.has(w));
+
+  // 1. Both legs found — covers "AAPL and MSFT", "apple & microsoft", "aapl/msft", etc.
+  for (const e of ALL_PAIR_ENTRIES) {
+    if (sideA(e) && sideB(e)) return e.key;
+  }
+
+  // 2. Single ticker match (skip 1-char tickers like V, T, D, C, F — too ambiguous)
+  for (const e of ALL_PAIR_ENTRIES) {
+    if (e.tickA.length >= 2 && tokens.has(e.tickA)) return e.key;
+    if (e.tickB.length >= 2 && tokens.has(e.tickB)) return e.key;
+  }
+
+  // 3. Single company name keyword (min 4 chars to reduce false positives)
+  for (const e of ALL_PAIR_ENTRIES) {
+    if (e.wordsA.some((w) => w.length >= 4 && tokens.has(w))) return e.key;
+    if (e.wordsB.some((w) => w.length >= 4 && tokens.has(w))) return e.key;
+  }
+
+  // 4. Thematic fallback ("credit card" → V_MA, "beverage" → KO_PEP, etc.)
+  for (const { pair, phrases } of THEMATIC_PHRASES) {
     if (phrases.some((re) => re.test(text))) return pair;
   }
+
   return null;
 }
 

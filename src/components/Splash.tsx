@@ -16,7 +16,7 @@ export default function Splash({ onDismiss }: Props) {
       }}
       aria-label="Open Sage"
     >
-      <img src={introLogo} alt="Sage — Your Financial Assistant" />
+      <img src={introLogo} alt="Sage:Your Financial Assistant" />
     </div>
   );
 }

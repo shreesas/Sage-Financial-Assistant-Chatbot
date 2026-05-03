@@ -91,6 +91,7 @@ export type Message = {
   id: string;
   speaker: 'sage' | 'user';
   text?: string;
+  ttsText?: string;
   slots?: WidgetSlot[];
   options?: OptionChip[];
   optionsResolved?: string;

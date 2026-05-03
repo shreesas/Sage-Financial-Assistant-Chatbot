@@ -1,10 +1,17 @@
 import { useCallback, useState } from 'react';
-import { useVoiceInput } from '../hooks/useVoiceInput';
+
+type VoiceProp = {
+  supported: boolean;
+  listening: boolean;
+  start: (opts: { onInterim?: (t: string) => void; onFinal?: (t: string) => void }) => void;
+  stop: () => void;
+};
 
 type Props = {
   onSend: (text: string) => void;
   disabled?: boolean;
   placeholder?: string;
+  voice: VoiceProp;
 };
 
 function MicIcon() {
@@ -39,6 +46,7 @@ export default function Composer({
   onSend,
   disabled,
   placeholder = 'Message your finance assistant…',
+  voice,
 }: Props) {
   const [value, setValue] = useState('');
 
@@ -52,13 +60,19 @@ export default function Composer({
     [onSend]
   );
 
-  const voice = useVoiceInput({
-    onInterim: (text) => setValue(text),
-    onFinal: (text) => {
-      setValue('');
-      submit(text);
-    },
-  });
+  const handleMicClick = () => {
+    if (voice.listening) {
+      voice.stop();
+    } else {
+      voice.start({
+        onInterim: (text) => setValue(text),
+        onFinal: (text) => {
+          setValue('');
+          submit(text);
+        },
+      });
+    }
+  };
 
   const onKey = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -80,7 +94,7 @@ export default function Composer({
         className={`composer__btn ${
           voice.listening ? 'composer__btn--mic-active' : ''
         }`}
-        onClick={() => (voice.listening ? voice.stop() : voice.start())}
+        onClick={handleMicClick}
         disabled={!voice.supported || disabled}
         aria-label={voice.listening ? 'Stop voice input' : 'Start voice input'}
         title={
@@ -88,7 +102,7 @@ export default function Composer({
             ? voice.listening
               ? 'Listening… tap to stop'
               : 'Tap to speak'
-            : 'Voice input not supported in this browser'
+            : 'Voice input not supported — check Azure Speech config'
         }
       >
         <MicIcon />

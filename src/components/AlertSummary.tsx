@@ -41,7 +41,7 @@ export default function AlertSummary({
         <span>{METHOD_LABEL[method]}</span>
       </div>
       <div className="alert-card__row">
-        <span>Current z-score</span>
+        <span>Spread deviation (z-score)</span>
         <span>
           {currentZ.toFixed(2)} {armed ? '· at threshold' : '· armed'}
         </span>
