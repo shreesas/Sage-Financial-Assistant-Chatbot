@@ -181,7 +181,7 @@ export function generateSpreadInsight(pair: PairKey, stats: SpreadStats): string
     corrLine = `These two stocks only move together about ${corrPct}% of the time, so this gap could stick around for a while.`;
   }
 
-  return `${gapLine} ${zLine}`;
+  return `${gapLine} ${zLine} ${corrLine}`;
 }
 
 // Greeting / sure / yes / no detection from utterances in sage_script.json.
