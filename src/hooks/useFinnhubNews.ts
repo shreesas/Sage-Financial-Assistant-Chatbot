@@ -89,6 +89,23 @@ export type FinnhubNewsResult = {
   loading: boolean;
 };
 
+export function getCachedNews(pair: PairKey): NewsItem[] | undefined {
+  return pairCache.get(pair);
+}
+
+export function prefetchNews(pair: PairKey): void {
+  if (!API_KEY || pairCache.has(pair) || pairInflight.has(pair)) return;
+  const p = loadPairNews(pair);
+  pairInflight.set(pair, p);
+  p.then((result) => {
+    pairCache.set(pair, result);
+    pairInflight.delete(pair);
+  }).catch(() => {
+    pairInflight.delete(pair);
+    pairCache.set(pair, PAIR_NEWS[pair] ?? []);
+  });
+}
+
 export function useFinnhubNews(pair: PairKey): FinnhubNewsResult {
   const [items, setItems] = useState<NewsItem[]>(
     () => pairCache.get(pair) ?? PAIR_NEWS[pair] ?? []

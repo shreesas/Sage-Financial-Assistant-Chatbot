@@ -2,7 +2,8 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useAzureSpeech } from '../hooks/useAzureSpeech';
 import { useConversation } from '../hooks/useConversation';
 import { useStockData } from '../hooks/useStockData';
-import type { Message, OptionChip, WidgetSlot } from '../types';
+import { generateSpreadInsight } from '../data/sageFlow';
+import type { Message, OptionChip, PairKey, SpreadStats, WidgetSlot, WindowKey } from '../types';
 import AlertSummary from './AlertSummary';
 import Composer from './Composer';
 import ThemeToggle from './ThemeToggle';
@@ -54,12 +55,16 @@ function SoundOffIcon() {
   );
 }
 
+type GetStats = (pair: PairKey, window: WindowKey) => SpreadStats | null;
+
 function Slot({
   slot,
   onPick,
+  getStats,
 }: {
   slot: WidgetSlot;
   onPick?: (chip: OptionChip) => void;
+  getStats?: GetStats;
 }) {
   switch (slot.kind) {
     case 'pairs':
@@ -68,6 +73,17 @@ function Slot({
       return <SpreadTable pair={slot.pair} window={slot.window} />;
     case 'chart':
       return <SpreadChart pair={slot.pair} window={slot.window} />;
+    case 'insight': {
+      const stats = getStats?.(slot.pair, slot.window) ?? null;
+      if (!stats) return (
+        <div className="thinking-bubble" aria-label="Loading analysis">
+          <span className="thinking-bubble__dot" />
+          <span className="thinking-bubble__dot" />
+          <span className="thinking-bubble__dot" />
+        </div>
+      );
+      return <p className="msg__text msg__insight">{generateSpreadInsight(slot.pair, stats)}</p>;
+    }
     case 'news':
       return <NewsCards pair={slot.pair} />;
     case 'alert':
@@ -86,10 +102,12 @@ function MessageRow({
   message,
   isLatestSage,
   onPick,
+  getStats,
 }: {
   message: Message;
   isLatestSage: boolean;
   onPick: (chip: OptionChip) => void;
+  getStats: GetStats;
 }) {
   const slots = message.slots ?? [];
   const hasSpreadChart =
@@ -100,6 +118,7 @@ function MessageRow({
     <Slot
       key={i}
       slot={s}
+      getStats={getStats}
       onPick={
         s.kind === 'pairs' && isLatestSage && !message.optionsResolved
           ? onPick
@@ -137,7 +156,7 @@ export default function Chat() {
     },
     [stock]
   );
-  const { state, isThinking, sendUserText, selectOption } = useConversation(getZ, stock.getStats);
+  const { state, isThinking, sendUserText, selectOption } = useConversation(getZ, stock.getStats, stock.fetchForPair);
   const speech = useAzureSpeech();
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const bottomRef = useRef<HTMLDivElement | null>(null);
@@ -185,6 +204,23 @@ export default function Chat() {
     speech.speak(combinedText, lastId);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state.messages]);
+
+  // Speak insight text once stats load (insight messages have no text field,
+  // so the effect above skips them — this fires when stock data becomes available)
+  useEffect(() => {
+    if (isMutedRef.current) return;
+    for (const m of state.messages) {
+      if (m.speaker !== 'sage' || spokenIdsRef.current.has(m.id)) continue;
+      const slot = m.slots?.find((s) => s.kind === 'insight');
+      if (!slot || slot.kind !== 'insight') continue;
+      const stats = stock.getStats(slot.pair, slot.window);
+      if (!stats) continue;
+      spokenIdsRef.current.add(m.id);
+      speech.speak(generateSpreadInsight(slot.pair, stats), m.id);
+      return;
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.messages, stock]);
 
   const handleSend = useCallback(
     (text: string) => {
@@ -236,6 +272,7 @@ export default function Chat() {
                   message={m}
                   isLatestSage={m.id === latestSageId}
                   onPick={handleSelectOption}
+                  getStats={stock.getStats}
                 />
               ))}
               {isThinking && <ThinkingBubble />}

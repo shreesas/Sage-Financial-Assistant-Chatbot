@@ -78,6 +78,7 @@ export type WidgetSlot =
   | { kind: 'pairs' }
   | { kind: 'spread'; pair: PairKey; window: WindowKey }
   | { kind: 'chart'; pair: PairKey; window: WindowKey }
+  | { kind: 'insight'; pair: PairKey; window: WindowKey }
   | { kind: 'news'; pair: PairKey }
   | {
       kind: 'alert';

@@ -9,18 +9,18 @@ export const SAGE_LINES = {
   taskPrompt:
     "I can help you find correlated stock pairs, check how a pair's spread is behaving, or set up alerts. What would you like to do?",
   pairsIntro:
-    'Here are three pairs that have moved together closely over the last 90 days. These stocks usually rise and fall in sync — when one drifts away from the other, it can be worth a closer look. Pick one to dig in.',
+    'Here are three pairs that have moved together closely over the last 90 days. These stocks usually rise and fall in sync. When one drifts away from the other, it can be worth a closer look. Pick one to dig in.',
   windowPrompt:
     'You can compare them over a short window (30 days), a medium one (90 days), or a longer one (1 year). Which works for you?',
   spreadFeedback:
-    "The table shows today's price gap vs. their historical average — if both numbers are close, the pair is behaving normally. The chart tracks that gap over time; the shaded band is the typical day-to-day range, and the dashed line is the average.",
+    "The table shows today's price gap vs. their historical average. If both numbers are close, the pair is behaving normally. The chart tracks that gap over time. The shaded band is the typical day-to-day range, and the dashed line is the average.",
   newsPrompt:
     'I found a couple of recent news items worth a look. Want to see them?',
   alertPrompt:
     "Want me to set up an alert so you'll know if the gap shifts meaningfully?",
   thresholdPrompt:
     "I'll alert you when the gap looks unusually large compared to historical norms, measured in standard deviation. How sensitive should I be?",
-  methodPrompt: 'And how should I reach you — push, email, or SMS?',
+  methodPrompt: 'And how should I reach you? Push, email, or SMS?',
   emailAddressPrompt: 'Can you share your email address?',
   followupPrompt: 'Anything else?',
   signoff: 'Great. Come back anytime to check pairs or adjust alerts.',
@@ -61,10 +61,10 @@ export function detectSector(text: string): string {
 }
 
 export const PAIR_PICK_LINE: Partial<Record<PairKey, string>> = {
-  V_MA: 'Good pick — Visa and Mastercard are two payment-network heavyweights with a long history of moving together.',
+  V_MA: 'Good pick. Visa and Mastercard are two payment-network heavyweights with a long history of moving together.',
   KO_PEP:
-    'Great choice — two beverage giants with a long history of moving together.',
-  F_GM: 'Two Detroit heavyweights — these tend to track each other closely, especially around earnings and macro news.',
+    'Great choice. Two beverage giants with a long history of moving together.',
+  F_GM: 'Two Detroit heavyweights. These tend to track each other closely, especially around earnings and macro news.',
 };
 
 export type NewsItem = {
@@ -82,7 +82,7 @@ export const PAIR_NEWS: Partial<Record<PairKey, NewsItem[]>> = {
     {
       ticker: 'V',
       headline:
-        'Visa reported strong Q1 earnings, with analysts pointing to steady revenue growth across market conditions — generally positive for V.',
+        'Visa reported strong Q1 earnings, with analysts pointing to steady revenue growth across market conditions. Generally positive for V.',
       source: 'Yahoo Finance',
       date: 'April 2026',
       summary: 'Steady revenue growth across market conditions signals a broadly positive outlook for Visa.',
@@ -90,7 +90,7 @@ export const PAIR_NEWS: Partial<Record<PairKey, NewsItem[]>> = {
     {
       ticker: 'MA',
       headline:
-        'Mastercard heads into Q1 earnings, with analysts watching margins and cross-border volume — a mixed setup for MA.',
+        'Mastercard heads into Q1 earnings, with analysts watching margins and cross-border volume. A mixed setup for MA.',
       source: 'Yahoo Finance',
       date: 'April 2026',
       summary: 'Analysts are watching margin trends and cross-border volume as key signals for Mastercard this quarter.',
@@ -100,7 +100,7 @@ export const PAIR_NEWS: Partial<Record<PairKey, NewsItem[]>> = {
     {
       ticker: 'KO',
       headline:
-        'Coca-Cola reported Q1 results, with analysts noting resilient pricing power despite volume headwinds — broadly neutral for KO.',
+        'Coca-Cola reported Q1 results, with analysts noting resilient pricing power despite volume headwinds. Broadly neutral for KO.',
       source: 'Yahoo Finance',
       date: 'April 2026',
       summary: 'Resilient pricing power offsets volume headwinds, leaving the outlook broadly neutral for Coca-Cola.',
@@ -108,7 +108,7 @@ export const PAIR_NEWS: Partial<Record<PairKey, NewsItem[]>> = {
     {
       ticker: 'PEP',
       headline:
-        'PepsiCo cut its annual guidance after a softer-than-expected quarter, citing tariff pressure and cautious consumers — a cautionary signal for PEP.',
+        'PepsiCo cut its annual guidance after a softer-than-expected quarter, citing tariff pressure and cautious consumers. A cautionary signal for PEP.',
       source: 'Yahoo Finance',
       date: 'April 2026',
       summary: 'Tariff pressure and cautious consumer spending drove a guidance cut, flagging downside risk for PepsiCo.',
@@ -118,7 +118,7 @@ export const PAIR_NEWS: Partial<Record<PairKey, NewsItem[]>> = {
     {
       ticker: 'F',
       headline:
-        'Ford is in talks with a Chinese automaker on technology sharing, which analysts are watching given tariff exposure — a mixed signal for F.',
+        'Ford is in talks with a Chinese automaker on technology sharing, which analysts are watching given tariff exposure. A mixed signal for F.',
       source: 'Yahoo Finance',
       date: 'April 2026',
       summary: 'Technology-sharing talks with a Chinese partner add uncertainty given Ford\'s tariff exposure.',
@@ -126,7 +126,7 @@ export const PAIR_NEWS: Partial<Record<PairKey, NewsItem[]>> = {
     {
       ticker: 'GM',
       headline:
-        'GM is set to report Q1 earnings, with analysts flagging tariff risks and consumer softness as the main uncertainties — a cautious setup for GM.',
+        'GM is set to report Q1 earnings, with analysts flagging tariff risks and consumer softness as the main uncertainties. A cautious setup for GM.',
       source: 'CNBC / Yahoo Finance',
       date: 'April 2026',
       summary: 'Tariff risks and softening consumer demand are the main uncertainties heading into GM\'s Q1 report.',
@@ -137,16 +137,12 @@ export const PAIR_NEWS: Partial<Record<PairKey, NewsItem[]>> = {
 // Plain-language verdict for the spread, derived from |z|.
 export function verdictForZScore(z: number): string {
   const a = Math.abs(z);
-  if (a < 0.5) return 'Right around the usual gap — nothing unusual today.';
-  if (a < 1.0)
-    return 'A touch off the usual gap, but well within normal day-to-day movement.';
-  if (a < 1.5)
-    return 'Slightly stretched compared to the typical range — worth keeping an eye on.';
-  if (a < 2)
-    return 'Wider than usual. This kind of move only happens about 1 in 7 days historically.';
-  if (a < 3)
-    return 'Significantly wider than usual — this is the ~5% tail of historical behavior.';
-  return 'A major divergence — this is well outside the historical norm.';
+  if (a < 0.5) return 'The gap is right where it usually is. Nothing unusual today.';
+  if (a < 1.0) return 'The gap has drifted a little, but it\'s still normal.';
+  if (a < 1.5) return 'The gap is a bit stretched. Worth keeping an eye on.';
+  if (a < 2) return 'The gap is wider than usual. This only happens about 1 in 7 days.';
+  if (a < 3) return 'The gap is unusually wide. Only about 1 in 20 days looks like this.';
+  return 'The gap is extremely wide. This is rare and worth watching closely.';
 }
 
 export function generateSpreadInsight(pair: PairKey, stats: SpreadStats): string {
@@ -161,31 +157,31 @@ export function generateSpreadInsight(pair: PairKey, stats: SpreadStats): string
   const diff = fmt(Math.abs(currentSpread - meanSpread));
   const dir = zScore > 0 ? 'above' : 'below';
 
-  const gapLine = `The table compares today's gap (${fmt(currentSpread)}) to the ${windowLabel} average (${fmt(meanSpread)}) — the chart tracks how that gap has moved over time, with the shaded band showing the normal range and the dashed line marking the mean. Right now the gap is ${diff} points ${dir} average.`;
+  const gapLine = `Today's gap is ${fmt(currentSpread)}, compared to the ${windowLabel} average of ${fmt(meanSpread)}. The chart shows how that gap has changed over time. The shaded band is the normal range and the dashed line is the average. Right now the gap is ${diff} points ${dir} average.`;
 
   let zLine: string;
   if (zAbs < 0.5) {
-    zLine = 'The pair is trading normally — no unusual divergence to flag.';
+    zLine = 'The gap is right where it usually is. Nothing out of the ordinary.';
   } else if (zAbs < 1.0) {
-    zLine = `A small drift of ${fmt(zAbs)} standard deviations, but still within the normal day-to-day range.`;
+    zLine = 'The gap has drifted a little, but it\'s still well within normal territory.';
   } else if (zAbs < 2.0) {
-    zLine = `At ${fmt(zAbs)} standard deviations from average, the spread is stretched — historically gaps this ${zScore > 0 ? 'wide' : 'narrow'} have tended to close back toward the mean.`;
+    zLine = `The gap is more ${zScore > 0 ? 'stretched' : 'compressed'} than usual. Historically, gaps this ${zScore > 0 ? 'wide' : 'narrow'} have tended to come back toward normal.`;
   } else if (zAbs < 3.0) {
-    zLine = `This is a ${fmt(zAbs)}-sigma move — statistically uncommon, occurring in roughly 5% of historical sessions, which means the gap may be due for a reversal.`;
+    zLine = 'The gap is unusually wide. This only happens about 1 in 20 trading days, so there\'s a decent chance it starts to narrow.';
   } else {
-    zLine = `A ${fmt(zAbs)}-sigma divergence is extreme and historically rare — worth monitoring closely for a potential snap back.`;
+    zLine = 'The gap is extremely wide. This is rare historically and worth watching closely in case it starts to close.';
   }
 
   let corrLine: string;
   if (corrPct >= 85) {
-    corrLine = `${nameA} and ${nameB} have a ${corrPct}% historical correlation — they move very closely together, so gaps like this have a strong tendency to close.`;
+    corrLine = `${nameA} and ${nameB} tend to move together ${corrPct}% of the time, so gaps like this usually don't last long.`;
   } else if (corrPct >= 70) {
-    corrLine = `With a ${corrPct}% correlation they usually trend the same direction, though independent moves do occur, so treat this as one signal among several.`;
+    corrLine = `These two stocks move in the same direction about ${corrPct}% of the time, so gaps often close, but not always.`;
   } else {
-    corrLine = `Their ${corrPct}% correlation means they don't always move in lockstep, so spreads can sometimes persist longer than expected.`;
+    corrLine = `These two stocks only move together about ${corrPct}% of the time, so this gap could stick around for a while.`;
   }
 
-  return `${gapLine} ${zLine} ${corrLine}`;
+  return `${gapLine} ${zLine}`;
 }
 
 // Greeting / sure / yes / no detection from utterances in sage_script.json.

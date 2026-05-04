@@ -13,13 +13,13 @@ import {
   detectThreshold,
   detectWindow,
   extractEmailAddress,
-  generateSpreadInsight,
   isActionRequest,
   isArbitrageWatchlistPick,
   isGreeting,
   isNo,
   isYes,
 } from '../data/sageFlow';
+import { getCachedNews, prefetchNews } from './useFinnhubNews';
 import type {
   Message,
   NotificationMethod,
@@ -177,6 +177,7 @@ function methodLabel(m: NotificationMethod): string {
 
 type GetZ = (pair: PairKey, window: WindowKey) => number | null;
 type GetStats = (pair: PairKey, window: WindowKey) => SpreadStats | null;
+type FetchForPair = (pair: PairKey) => void;
 
 export type ConversationApi = {
   state: State;
@@ -187,7 +188,7 @@ export type ConversationApi = {
 
 const THINKING_DELAY_MS = 2000;
 
-export function useConversation(getZ: GetZ, getStats: GetStats): ConversationApi {
+export function useConversation(getZ: GetZ, getStats: GetStats, fetchForPair: FetchForPair): ConversationApi {
   const [state, dispatch] = useReducer(reducer, initialState, (s): State => {
     return {
       ...s,
@@ -199,6 +200,8 @@ export function useConversation(getZ: GetZ, getStats: GetStats): ConversationApi
 
   const advanceFromPair = useCallback(
     (pair: PairKey, resolved?: string): Resolve => {
+      prefetchNews(pair);
+      fetchForPair(pair);
       return {
         resolveLastOptions: resolved,
         push: [
@@ -211,7 +214,7 @@ export function useConversation(getZ: GetZ, getStats: GetStats): ConversationApi
         patch: { step: 'awaiting_window', pair },
       };
     },
-    []
+    [fetchForPair]
   );
 
   const advanceFromWindow = useCallback(
@@ -230,10 +233,7 @@ export function useConversation(getZ: GetZ, getStats: GetStats): ConversationApi
           },
           {
             speaker: 'sage',
-            text: (() => {
-              const stats = getStats(pair, window);
-              return stats ? generateSpreadInsight(pair, stats) : SAGE_LINES.spreadFeedback;
-            })(),
+            slots: [{ kind: 'insight' as const, pair, window }],
           },
           {
             speaker: 'sage',
@@ -256,7 +256,7 @@ export function useConversation(getZ: GetZ, getStats: GetStats): ConversationApi
             speaker: 'sage',
             text: 'Two recent stories worth a look:',
             ttsText: (() => {
-              const items = PAIR_NEWS[pair];
+              const items = getCachedNews(pair) ?? PAIR_NEWS[pair];
               if (!items?.length) return 'Two recent stories worth a look.';
               const titles = items.map((n, i) => `Story ${i + 1}: ${n.headline}`).join('. ');
               return `Two recent stories worth a look. ${titles}.`;

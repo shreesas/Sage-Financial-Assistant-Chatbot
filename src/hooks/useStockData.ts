@@ -131,17 +131,28 @@ function computeRSI(values: number[], period = 14): number[] {
 
 function pearsonCorrelation(legA: PriceRow[], legB: PriceRow[]): number {
   const bByDate = new Map(legB.map((r) => [r.date, r.close]));
-  const pairs: { a: number; b: number }[] = [];
+  const aligned: { a: number; b: number }[] = [];
   for (const ra of legA) {
     const rb = bByDate.get(ra.date);
-    if (rb != null) pairs.push({ a: ra.close, b: rb });
+    if (rb != null) aligned.push({ a: ra.close, b: rb });
   }
-  const n = pairs.length;
-  if (n < 2) return 0;
-  const meanA = pairs.reduce((s, p) => s + p.a, 0) / n;
-  const meanB = pairs.reduce((s, p) => s + p.b, 0) / n;
+  if (aligned.length < 3) return 0;
+
+  // Correlate daily returns (not price levels) — measures how often both
+  // stocks move in the same direction on a given day, which is what matters
+  // for pairs trading. Price-level correlation is distorted by diverging trends.
+  const returns: { a: number; b: number }[] = [];
+  for (let i = 1; i < aligned.length; i++) {
+    returns.push({
+      a: (aligned[i].a - aligned[i - 1].a) / aligned[i - 1].a,
+      b: (aligned[i].b - aligned[i - 1].b) / aligned[i - 1].b,
+    });
+  }
+  const n = returns.length;
+  const meanA = returns.reduce((s, p) => s + p.a, 0) / n;
+  const meanB = returns.reduce((s, p) => s + p.b, 0) / n;
   let num = 0, denomA = 0, denomB = 0;
-  for (const p of pairs) {
+  for (const p of returns) {
     const da = p.a - meanA;
     const db = p.b - meanB;
     num += da * db;
