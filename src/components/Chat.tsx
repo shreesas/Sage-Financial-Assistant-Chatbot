@@ -199,7 +199,15 @@ export default function Chat() {
 
     unsaid.forEach((m) => spokenIdsRef.current.add(m.id));
 
-    const combinedText = unsaid.map((m) => m.ttsText ?? m.text).join(' ');
+    const combinedText = unsaid.map((m) => {
+      const base = m.ttsText ?? m.text ?? '';
+      if (!m.options?.length || m.optionsResolved) return base;
+      const labels = m.options.map((o) => o.label);
+      const optionList = labels.length <= 2
+        ? labels.join(' or ')
+        : labels.slice(0, -1).join(', ') + ', or ' + labels[labels.length - 1];
+      return `${base} ${optionList}`;
+    }).join(' ');
     const lastId = unsaid[unsaid.length - 1].id;
     speech.speak(combinedText, lastId);
   // eslint-disable-next-line react-hooks/exhaustive-deps
