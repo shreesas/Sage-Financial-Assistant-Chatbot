@@ -145,15 +145,12 @@ export function verdictForZScore(z: number): string {
   return 'The gap is extremely wide. This is rare and worth watching closely.';
 }
 
-export function generateSpreadInsight(pair: PairKey, stats: SpreadStats): string {
-  const nameA = PAIRS[pair].legA.name;
-  const nameB = PAIRS[pair].legB.name;
-  const { currentSpread, meanSpread, zScore, correlation } = stats;
+export function generateSpreadInsight(_pair: PairKey, stats: SpreadStats): string {
+  const { currentSpread, meanSpread, zScore } = stats;
   const windowLabel = WINDOW_LABEL[stats.window as WindowKey] ?? stats.window;
   const fmt = (n: number) => n.toFixed(1);
 
   const zAbs = Math.abs(zScore);
-  const corrPct = Math.round(Math.abs(correlation) * 100);
   const diff = fmt(Math.abs(currentSpread - meanSpread));
   const dir = zScore > 0 ? 'above' : 'below';
 
@@ -172,16 +169,7 @@ export function generateSpreadInsight(pair: PairKey, stats: SpreadStats): string
     zLine = 'The gap is extremely wide. This is rare historically and worth watching closely in case it starts to close.';
   }
 
-  let corrLine: string;
-  if (corrPct >= 85) {
-    corrLine = `${nameA} and ${nameB} tend to move together ${corrPct}% of the time, so gaps like this usually don't last long.`;
-  } else if (corrPct >= 70) {
-    corrLine = `These two stocks move in the same direction about ${corrPct}% of the time, so gaps often close, but not always.`;
-  } else {
-    corrLine = `These two stocks only move together about ${corrPct}% of the time, so this gap could stick around for a while.`;
-  }
-
-  return `${gapLine} ${zLine} ${corrLine}`;
+  return `${gapLine} ${zLine}`;
 }
 
 // Greeting / sure / yes / no detection from utterances in sage_script.json.
